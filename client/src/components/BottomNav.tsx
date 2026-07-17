@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 
 const tabs = [
   { to: "/", label: "Today", icon: "🔥", end: true },
+  { to: "/challenges", label: "Goals", icon: "🏆", end: false },
   { to: "/feed", label: "Feed", icon: "📣", end: false },
   { to: "/friends", label: "Friends", icon: "👥", end: false },
   { to: "/calendar", label: "History", icon: "📅", end: false },
@@ -17,7 +18,7 @@ export default function BottomNav() {
             to={tab.to}
             end={tab.end}
             className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
+              `flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ${
                 isActive
                   ? "text-orange-500"
                   : "text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"

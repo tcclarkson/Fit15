@@ -72,3 +72,52 @@ export interface AppNotification {
   created_at: string;
   read: 0 | 1;
 }
+
+export type ChallengeWindowType = "fixed" | "rolling";
+export type ChallengeMemberStatus = "invited" | "active" | "declined" | "left";
+
+export interface ChallengeProgress {
+  currentStreak: number;
+  totalDaysHit: number;
+  targetDays: number;
+  daysRemaining: number;
+  daysUntilStart: number;
+  isUpcoming: boolean;
+  isEnded: boolean;
+  effectiveStart: string;
+  effectiveEnd: string;
+}
+
+export interface ChallengeSummary {
+  id: string;
+  name: string;
+  windowType: ChallengeWindowType;
+  startDate: string | null;
+  endDate: string | null;
+  durationDays: number | null;
+  isCreator: boolean;
+  memberCount: number;
+  myStatus: ChallengeMemberStatus;
+  invitedBy: string | null;
+  myProgress: ChallengeProgress | null;
+}
+
+export interface ChallengeLeaderboardEntry {
+  user: PublicUser;
+  progress: ChallengeProgress;
+}
+
+export interface ChallengeDetail {
+  challenge: {
+    id: string;
+    name: string;
+    windowType: ChallengeWindowType;
+    startDate: string | null;
+    endDate: string | null;
+    durationDays: number | null;
+    isCreator: boolean;
+  };
+  myStatus: ChallengeMemberStatus;
+  myProgress: ChallengeProgress | null;
+  leaderboard: ChallengeLeaderboardEntry[];
+}

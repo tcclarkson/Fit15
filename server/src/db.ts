@@ -54,6 +54,32 @@ CREATE TABLE IF NOT EXISTS notifications (
   read INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS challenges (
+  id TEXT PRIMARY KEY,
+  creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  window_type TEXT NOT NULL CHECK(window_type IN ('fixed','rolling')),
+  start_date TEXT,
+  end_date TEXT,
+  duration_days INTEGER,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS challenge_members (
+  id TEXT PRIMARY KEY,
+  challenge_id TEXT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL CHECK(status IN ('invited','active','declined','left')),
+  member_start_date TEXT,
+  member_end_date TEXT,
+  reset_date TEXT,
+  invited_by TEXT REFERENCES users(id),
+  created_at TEXT NOT NULL,
+  UNIQUE(challenge_id, user_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_logs_user_date ON activity_logs(user_id, log_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_challenge_members_challenge ON challenge_members(challenge_id);
+CREATE INDEX IF NOT EXISTS idx_challenge_members_user ON challenge_members(user_id);
 `);

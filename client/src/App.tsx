@@ -8,6 +8,8 @@ import CalendarPage from "./pages/CalendarPage";
 import Friends from "./pages/Friends";
 import Feed from "./pages/Feed";
 import Notifications from "./pages/Notifications";
+import Challenges from "./pages/Challenges";
+import ChallengeDetail from "./pages/ChallengeDetail";
 
 function App() {
   return (
@@ -18,6 +20,8 @@ function App() {
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Today />} />
+          <Route path="/challenges" element={<Challenges />} />
+          <Route path="/challenges/:id" element={<ChallengeDetail />} />
           <Route path="/feed" element={<Feed />} />
           <Route path="/friends" element={<Friends />} />
           <Route path="/calendar" element={<CalendarPage />} />

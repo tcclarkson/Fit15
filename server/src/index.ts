@@ -10,6 +10,7 @@ import friendsRoutes from "./routes/friends";
 import feedRoutes from "./routes/feed";
 import notificationsRoutes from "./routes/notifications";
 import metaRoutes from "./routes/meta";
+import challengesRoutes from "./routes/challenges";
 
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
@@ -26,6 +27,7 @@ app.use("/api/friends", friendsRoutes);
 app.use("/api/feed", feedRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/meta", metaRoutes);
+app.use("/api/challenges", challengesRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
