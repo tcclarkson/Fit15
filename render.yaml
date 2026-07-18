@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: fit15
+    runtime: node
+    plan: free
+    buildCommand: >-
+      cd client && npm ci && npm run build &&
+      cd ../server && npm ci && npm run build &&
+      rm -rf public && cp -r ../client/dist public
+    startCommand: node server/dist/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATA_DIR
+        value: /var/data/db
+      - key: UPLOADS_DIR
+        value: /var/data/uploads
+    disk:
+      name: fit15-data
+      mountPath: /var/data
+      sizeGB: 1

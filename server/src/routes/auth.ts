@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
-import { signToken, COOKIE_NAME, requireAuth, AuthedRequest } from "../auth";
+import { signToken, COOKIE_NAME, AUTH_COOKIE_OPTIONS, requireAuth, AuthedRequest } from "../auth";
 
 const router = Router();
 
@@ -55,11 +55,7 @@ router.post("/signup", (req, res) => {
   );
 
   const token = signToken(id);
-  res.cookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-  });
+  res.cookie(COOKIE_NAME, token, AUTH_COOKIE_OPTIONS);
   const user = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
   res.status(201).json({ user: publicUser(user) });
 });
@@ -77,11 +73,7 @@ router.post("/login", (req, res) => {
     return res.status(401).json({ error: "Invalid credentials" });
   }
   const token = signToken(user.id);
-  res.cookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-  });
+  res.cookie(COOKIE_NAME, token, AUTH_COOKIE_OPTIONS);
   res.json({ user: publicUser(user) });
 });
 

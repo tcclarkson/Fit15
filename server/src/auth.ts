@@ -1,8 +1,19 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction, CookieOptions } from "express";
 import jwt from "jsonwebtoken";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "fit15-dev-secret-change-me";
 export const COOKIE_NAME = "fit15_token";
+
+if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+  console.warn("WARNING: JWT_SECRET is not set; using an insecure default. Set JWT_SECRET in production.");
+}
+
+export const AUTH_COOKIE_OPTIONS: CookieOptions = {
+  httpOnly: true,
+  sameSite: "lax",
+  secure: process.env.NODE_ENV === "production",
+  maxAge: 30 * 24 * 60 * 60 * 1000,
+};
 
 export interface AuthedRequest extends Request {
   userId?: string;
