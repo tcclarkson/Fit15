@@ -3,9 +3,12 @@ services:
     name: fit15
     runtime: node
     plan: free
+    # --include=dev is required: Render sets NODE_ENV=production for the build,
+    # and `npm ci` would otherwise skip devDependencies (vite, typescript,
+    # @types/*), which the build needs to compile the client and server.
     buildCommand: >-
-      cd client && npm ci && npm run build &&
-      cd ../server && npm ci && npm run build &&
+      cd client && npm ci --include=dev && npm run build &&
+      cd ../server && npm ci --include=dev && npm run build &&
       rm -rf public && cp -r ../client/dist public
     startCommand: node server/dist/index.js
     healthCheckPath: /api/health
