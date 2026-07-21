@@ -37,8 +37,10 @@ Then open http://localhost:5173.
 
 1. Push this repo to GitHub (already done if you're reading this from the repo).
 2. In the [Render dashboard](https://dashboard.render.com), click **New +** → **Blueprint**, and connect this repo.
-3. Pick the branch to deploy. Render detects `render.yaml` and shows the `fit15` service plan.
-4. The blueprint requests a small persistent disk (mounted at `/var/data`) for the SQLite database and uploaded photos. Persistent disks require a paid instance tier — check the plan Render shows you before applying. If you deploy on a free instance instead, the app still runs, but the database and photos reset on every restart/redeploy (fine for a short trial, not for anything longer-lived).
-5. Click **Apply**. Render builds and starts the service; when it's done you'll have a URL like `https://fit15-xxxx.onrender.com` to share.
+3. Pick the branch to deploy. Render detects `render.yaml` and shows the `fit15` service on the free plan.
+4. Click **Apply**. Render builds and starts the service; when it's done you'll have a URL like `https://fit15-xxxx.onrender.com` to share.
 
-Free-tier web services on Render also spin down after inactivity — the first request after idle time can take 30-60 seconds to wake back up. That's expected, not a bug.
+Two free-tier tradeoffs worth knowing:
+
+- **No persistent disk.** The blueprint targets Render's free plan, which doesn't support disks. That means the SQLite database and uploaded photos reset whenever the service restarts or redeploys — fine for a short trial, not for anything you want to keep long-term. To persist data, add a disk to the service in the Render dashboard (mount it at, say, `/var/data`, then set the `DATA_DIR=/var/data/db` and `UPLOADS_DIR=/var/data/uploads` env vars) — this requires upgrading off the free plan.
+- **Cold starts.** Free web services spin down after inactivity; the first request after idle time can take 30-60 seconds to wake back up. That's expected, not a bug.

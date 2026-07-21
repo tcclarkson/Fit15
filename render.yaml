@@ -14,11 +14,9 @@ services:
         value: production
       - key: JWT_SECRET
         generateValue: true
-      - key: DATA_DIR
-        value: /var/data/db
-      - key: UPLOADS_DIR
-        value: /var/data/uploads
-    disk:
-      name: fit15-data
-      mountPath: /var/data
-      sizeGB: 1
+    # No persistent disk here: Render's free tier doesn't support them, and this
+    # blueprint targets `plan: free`. Storage is ephemeral without one, so the
+    # SQLite database and uploaded photos reset on every restart/redeploy — fine
+    # for a short trial. To persist data, add a disk (mountPath e.g. /var/data)
+    # and set DATA_DIR=/var/data/db + UPLOADS_DIR=/var/data/uploads, which
+    # requires upgrading this service off the free plan.
