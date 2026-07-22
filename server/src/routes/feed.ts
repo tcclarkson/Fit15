@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../db";
+import { dbAll } from "../db";
 import { requireAuth, AuthedRequest } from "../auth";
 import { getAcceptedFriendIds } from "../notify";
 
@@ -10,21 +10,20 @@ function publicUser(u: any) {
 }
 
 // Recent activity from friends (and yourself), newest first.
-router.get("/", requireAuth, (req: AuthedRequest, res) => {
-  const friendIds = getAcceptedFriendIds(req.userId!);
+router.get("/", requireAuth, async (req: AuthedRequest, res) => {
+  const friendIds = await getAcceptedFriendIds(req.userId!);
   const ids = [req.userId!, ...friendIds];
   const placeholders = ids.map(() => "?").join(",");
 
-  const logs = db
-    .prepare(
-      `SELECT l.*, u.username, u.display_name, u.avatar_emoji
-       FROM activity_logs l
-       JOIN users u ON u.id = l.user_id
-       WHERE l.user_id IN (${placeholders})
-       ORDER BY l.log_date DESC, l.created_at DESC
-       LIMIT 50`
-    )
-    .all(...ids) as any[];
+  const logs = await dbAll<any>(
+    `SELECT l.*, u.username, u.display_name, u.avatar_emoji
+     FROM activity_logs l
+     JOIN users u ON u.id = l.user_id
+     WHERE l.user_id IN (${placeholders})
+     ORDER BY l.log_date DESC, l.created_at DESC
+     LIMIT 50`,
+    ids
+  );
 
   res.json({
     items: logs.map((l) => ({

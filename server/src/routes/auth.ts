@@ -1,12 +1,11 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../db";
+import { dbGet, dbRun } from "../db";
 import { signToken, COOKIE_NAME, AUTH_COOKIE_OPTIONS, requireAuth, AuthedRequest } from "../auth";
+import { AVATAR_EMOJIS, isValidAvatarEmoji } from "../avatars";
 
 const router = Router();
-
-const AVATAR_EMOJIS = ["🏃", "🚴", "🧘", "🏊", "🥾", "💃", "🏓", "⚽", "🏋️", "🚶"];
 
 function publicUser(u: any) {
   return {
@@ -18,7 +17,7 @@ function publicUser(u: any) {
   };
 }
 
-router.post("/signup", (req, res) => {
+router.post("/signup", async (req, res) => {
   const { email, username, password, displayName } = req.body || {};
   if (!email || !username || !password) {
     return res.status(400).json({ error: "Email, username, and password are required" });
@@ -31,9 +30,10 @@ router.post("/signup", (req, res) => {
     return res.status(400).json({ error: "Username must be 3-20 characters: letters, numbers, underscore" });
   }
 
-  const existing = db
-    .prepare("SELECT id FROM users WHERE email = ? OR username = ?")
-    .get(String(email).toLowerCase(), normalizedUsername);
+  const existing = await dbGet(
+    "SELECT id FROM users WHERE email = ? OR username = ?",
+    [String(email).toLowerCase(), normalizedUsername]
+  );
   if (existing) {
     return res.status(409).json({ error: "Email or username already in use" });
   }
@@ -41,34 +41,36 @@ router.post("/signup", (req, res) => {
   const id = uuidv4();
   const passwordHash = bcrypt.hashSync(password, 10);
   const avatarEmoji = AVATAR_EMOJIS[Math.floor(Math.random() * AVATAR_EMOJIS.length)];
-  db.prepare(
+  await dbRun(
     `INSERT INTO users (id, email, username, display_name, password_hash, avatar_emoji, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    id,
-    String(email).toLowerCase(),
-    normalizedUsername,
-    displayName?.trim() || normalizedUsername,
-    passwordHash,
-    avatarEmoji,
-    new Date().toISOString()
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      String(email).toLowerCase(),
+      normalizedUsername,
+      displayName?.trim() || normalizedUsername,
+      passwordHash,
+      avatarEmoji,
+      new Date().toISOString(),
+    ]
   );
 
   const token = signToken(id);
   res.cookie(COOKIE_NAME, token, AUTH_COOKIE_OPTIONS);
-  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
+  const user = await dbGet("SELECT * FROM users WHERE id = ?", [id]);
   res.status(201).json({ user: publicUser(user) });
 });
 
-router.post("/login", (req, res) => {
+router.post("/login", async (req, res) => {
   const { emailOrUsername, password } = req.body || {};
   if (!emailOrUsername || !password) {
     return res.status(400).json({ error: "Email/username and password are required" });
   }
   const identifier = String(emailOrUsername).trim().toLowerCase();
-  const user = db
-    .prepare("SELECT * FROM users WHERE email = ? OR username = ?")
-    .get(identifier, identifier) as any;
+  const user = (await dbGet("SELECT * FROM users WHERE email = ? OR username = ?", [
+    identifier,
+    identifier,
+  ])) as any;
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
@@ -82,9 +84,20 @@ router.post("/logout", (_req, res) => {
   res.json({ ok: true });
 });
 
-router.get("/me", requireAuth, (req: AuthedRequest, res) => {
-  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.userId);
+router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
+  const user = await dbGet("SELECT * FROM users WHERE id = ?", [req.userId]);
   if (!user) return res.status(404).json({ error: "User not found" });
+  res.json({ user: publicUser(user) });
+});
+
+// Update the signed-in user's profile avatar emoji.
+router.patch("/me", requireAuth, async (req: AuthedRequest, res) => {
+  const { avatarEmoji } = req.body || {};
+  if (!avatarEmoji || !isValidAvatarEmoji(avatarEmoji)) {
+    return res.status(400).json({ error: "Pick an emoji from the list" });
+  }
+  await dbRun("UPDATE users SET avatar_emoji = ? WHERE id = ?", [avatarEmoji, req.userId]);
+  const user = await dbGet("SELECT * FROM users WHERE id = ?", [req.userId]);
   res.json({ user: publicUser(user) });
 });
 

@@ -40,7 +40,7 @@ export default function Feed() {
                     {item.isMe ? "You" : item.user.displayName}
                   </span>{" "}
                   <span className="text-neutral-500 dark:text-neutral-400">
-                    logged {item.minutes} min of {meta?.label.toLowerCase() || item.activityType}
+                    completed {item.isMe ? "your" : "their"} Fit 15 · {meta?.label || item.activityType}
                   </span>{" "}
                   <span>{meta?.emoji}</span>
                 </p>

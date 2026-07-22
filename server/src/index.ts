@@ -3,8 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 import fs from "fs";
-import "./db";
-import { UPLOADS_DIR } from "./db";
+import { UPLOADS_DIR, initDb } from "./db";
 import authRoutes from "./routes/auth";
 import logsRoutes from "./routes/logs";
 import friendsRoutes from "./routes/friends";
@@ -51,6 +50,13 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   res.status(500).json({ error: err.message || "Internal server error" });
 });
 
-app.listen(PORT, () => {
-  console.log(`Fit 15 API listening on http://localhost:${PORT}`);
-});
+initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Fit 15 API listening on http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to initialize database:", err);
+    process.exit(1);
+  });

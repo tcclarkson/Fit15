@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
-import { db, UPLOADS_DIR } from "../db";
+import { UPLOADS_DIR, dbGet, dbAll, dbRun } from "../db";
 import { requireAuth, AuthedRequest } from "../auth";
 import { computeStreak } from "../streak";
 import { getUserDates } from "../userStreak";
@@ -35,85 +35,81 @@ function isValidDate(s: string): boolean {
 
 // Log (or update) today's activity.
 router.post("/", requireAuth, (req: AuthedRequest, res) => {
-  upload.single("photo")(req, res, (err) => {
+  upload.single("photo")(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
 
-    const { activityType, minutes, note, logDate } = req.body || {};
-    const minutesNum = Number(minutes);
+    try {
+      const { activityType, minutes, note, logDate } = req.body || {};
+      const minutesNum = Number(minutes);
 
-    if (!activityType || !isValidActivityKey(activityType)) {
-      return res.status(400).json({ error: "Invalid activity type" });
-    }
-    if (!Number.isFinite(minutesNum) || minutesNum < 15) {
-      return res.status(400).json({ error: "Minutes must be at least 15" });
-    }
-    const date = logDate && isValidDate(logDate) ? logDate : new Date().toISOString().slice(0, 10);
+      if (!activityType || !isValidActivityKey(activityType)) {
+        return res.status(400).json({ error: "Invalid activity type" });
+      }
+      if (!Number.isFinite(minutesNum) || minutesNum < 15) {
+        return res.status(400).json({ error: "Minutes must be at least 15" });
+      }
+      const date = logDate && isValidDate(logDate) ? logDate : new Date().toISOString().slice(0, 10);
 
-    const photoUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
-    const existing = db
-      .prepare("SELECT * FROM activity_logs WHERE user_id = ? AND log_date = ?")
-      .get(req.userId, date) as any;
+      const photoUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
+      const existing = (await dbGet(
+        "SELECT * FROM activity_logs WHERE user_id = ? AND log_date = ?",
+        [req.userId, date]
+      )) as any;
 
-    const now = new Date().toISOString();
-    if (existing) {
-      db.prepare(
-        `UPDATE activity_logs SET activity_type = ?, minutes = ?, note = ?, photo_url = COALESCE(?, photo_url)
-         WHERE id = ?`
-      ).run(activityType, Math.round(minutesNum), note || null, photoUrl || null, existing.id);
-    } else {
-      db.prepare(
-        `INSERT INTO activity_logs (id, user_id, activity_type, minutes, note, photo_url, log_date, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      ).run(
-        uuidv4(),
-        req.userId,
-        activityType,
-        Math.round(minutesNum),
-        note || null,
-        photoUrl || null,
-        date,
-        now
+      const now = new Date().toISOString();
+      if (existing) {
+        await dbRun(
+          `UPDATE activity_logs SET activity_type = ?, minutes = ?, note = ?, photo_url = COALESCE(?, photo_url)
+           WHERE id = ?`,
+          [activityType, Math.round(minutesNum), note || null, photoUrl || null, existing.id]
+        );
+      } else {
+        await dbRun(
+          `INSERT INTO activity_logs (id, user_id, activity_type, minutes, note, photo_url, log_date, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [uuidv4(), req.userId, activityType, Math.round(minutesNum), note || null, photoUrl || null, date, now]
+        );
+      }
+
+      const dates = await getUserDates(req.userId!);
+      const streak = computeStreak(dates, date);
+
+      if (!existing) {
+        const user = (await dbGet("SELECT * FROM users WHERE id = ?", [req.userId])) as any;
+        await notifyFriendsOfActivity(user.display_name, req.userId!, streak.currentStreak);
+      }
+
+      const log = await dbGet(
+        "SELECT * FROM activity_logs WHERE user_id = ? AND log_date = ?",
+        [req.userId, date]
       );
+      res.status(existing ? 200 : 201).json({ log, streak });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message || "Failed to log activity" });
     }
-
-    const dates = getUserDates(req.userId!);
-    const streak = computeStreak(dates, date);
-
-    if (!existing) {
-      const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.userId) as any;
-      notifyFriendsOfActivity(
-        user.display_name,
-        req.userId!,
-        Math.round(minutesNum),
-        activityType,
-        streak.currentStreak
-      );
-    }
-
-    const log = db
-      .prepare("SELECT * FROM activity_logs WHERE user_id = ? AND log_date = ?")
-      .get(req.userId, date);
-    res.status(existing ? 200 : 201).json({ log, streak });
   });
 });
 
 // Calendar history — all logs for the current user, most recent first.
-router.get("/me", requireAuth, (req: AuthedRequest, res) => {
-  const logs = db
-    .prepare("SELECT * FROM activity_logs WHERE user_id = ? ORDER BY log_date DESC")
-    .all(req.userId);
+router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
+  const logs = await dbAll(
+    "SELECT * FROM activity_logs WHERE user_id = ? ORDER BY log_date DESC",
+    [req.userId]
+  );
   res.json({ logs });
 });
 
-router.get("/streak/me", requireAuth, (req: AuthedRequest, res) => {
-  const today = typeof req.query.today === "string" && isValidDate(req.query.today)
-    ? req.query.today
-    : new Date().toISOString().slice(0, 10);
-  const dates = getUserDates(req.userId!);
+router.get("/streak/me", requireAuth, async (req: AuthedRequest, res) => {
+  const today =
+    typeof req.query.today === "string" && isValidDate(req.query.today)
+      ? req.query.today
+      : new Date().toISOString().slice(0, 10);
+  const dates = await getUserDates(req.userId!);
   const streak = computeStreak(dates, today);
-  const todayLog = db
-    .prepare("SELECT * FROM activity_logs WHERE user_id = ? AND log_date = ?")
-    .get(req.userId, today);
+  const todayLog = await dbGet(
+    "SELECT * FROM activity_logs WHERE user_id = ? AND log_date = ?",
+    [req.userId, today]
+  );
   res.json({ streak, todayLog: todayLog || null });
 });
 

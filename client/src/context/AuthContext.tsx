@@ -9,6 +9,7 @@ interface AuthContextValue {
   signup: (input: { email: string; username: string; password: string; displayName: string }) => Promise<void>;
   login: (input: { emailOrUsername: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
+  updateAvatar: (avatarEmoji: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -40,8 +41,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateAvatar = useCallback(async (avatarEmoji: string) => {
+    const res = await api.patch<{ user: User }>("/auth/me", { avatarEmoji });
+    setUser(res.user);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, signup, login, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, signup, login, logout, updateAvatar }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

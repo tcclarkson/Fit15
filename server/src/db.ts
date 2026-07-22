@@ -1,20 +1,53 @@
-import Database from "better-sqlite3";
+import { createClient, type Client, type InStatement } from "@libsql/client";
 import path from "path";
 import fs from "fs";
 
-// Overridable so a hosting platform's persistent disk (mounted at some fixed
-// absolute path) can be used instead of a path relative to the build output.
+// Local scratch dirs are only used for the local-file fallback and photo uploads.
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "data");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 export const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, "..", "uploads");
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-export const db = new Database(path.join(DATA_DIR, "fit15.db"));
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+// In production, point at a Turso/libSQL database via env vars so data persists
+// across restarts and redeploys. With no URL set, fall back to a local SQLite
+// file (used for development and tests) — same SQL dialect either way.
+const DB_URL = process.env.TURSO_DATABASE_URL || `file:${path.join(DATA_DIR, "fit15.db")}`;
+const DB_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN;
+const IS_LOCAL_FILE = DB_URL.startsWith("file:");
 
-db.exec(`
+if (process.env.NODE_ENV === "production" && IS_LOCAL_FILE) {
+  console.warn(
+    "WARNING: No TURSO_DATABASE_URL set in production — using an ephemeral local file. " +
+      "Data will be LOST on restart/redeploy. Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN to persist data."
+  );
+}
+
+export const client: Client = createClient({
+  url: DB_URL,
+  authToken: DB_AUTH_TOKEN,
+});
+
+export async function dbGet<T = any>(sql: string, args: any[] = []): Promise<T | undefined> {
+  const res = await client.execute({ sql, args });
+  return res.rows[0] as unknown as T | undefined;
+}
+
+export async function dbAll<T = any>(sql: string, args: any[] = []): Promise<T[]> {
+  const res = await client.execute({ sql, args });
+  return res.rows as unknown as T[];
+}
+
+export async function dbRun(sql: string, args: any[] = []): Promise<void> {
+  await client.execute({ sql, args });
+}
+
+// Run several write statements atomically (all-or-nothing).
+export async function dbBatch(statements: InStatement[]): Promise<void> {
+  await client.batch(statements, "write");
+}
+
+const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -84,4 +117,13 @@ CREATE INDEX IF NOT EXISTS idx_logs_user_date ON activity_logs(user_id, log_date
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_challenge_members_challenge ON challenge_members(challenge_id);
 CREATE INDEX IF NOT EXISTS idx_challenge_members_user ON challenge_members(user_id);
-`);
+`;
+
+export async function initDb(): Promise<void> {
+  if (IS_LOCAL_FILE) {
+    // Pragmas only meaningfully apply to the embedded/local file engine.
+    await client.execute("PRAGMA journal_mode = WAL");
+    await client.execute("PRAGMA foreign_keys = ON");
+  }
+  await client.executeMultiple(SCHEMA);
+}

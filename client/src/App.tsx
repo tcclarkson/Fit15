@@ -10,6 +10,7 @@ import Feed from "./pages/Feed";
 import Notifications from "./pages/Notifications";
 import Challenges from "./pages/Challenges";
 import ChallengeDetail from "./pages/ChallengeDetail";
+import Profile from "./pages/Profile";
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
           <Route path="/friends" element={<Friends />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/profile" element={<Profile />} />
         </Route>
       </Route>
     </Routes>
