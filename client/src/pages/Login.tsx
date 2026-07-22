@@ -34,8 +34,12 @@ export default function Login() {
         <div className="mb-8 text-center">
           <div className="text-5xl">🔥</div>
           <h1 className="mt-2 text-2xl font-extrabold text-neutral-900 dark:text-neutral-50">Fit 15</h1>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            Move 15 minutes a day. Protect your streak.
+          <p className="mt-3 text-lg font-bold text-neutral-900 dark:text-neutral-50">Just move.</p>
+          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+            Fit 15 isn't a workout plan. It's a rule: move for 15 minutes a day, no exceptions.
+          </p>
+          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+            No going ham. No burning out. Just showing up for you and your health.
           </p>
         </div>
 

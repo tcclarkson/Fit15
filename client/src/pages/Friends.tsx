@@ -59,6 +59,12 @@ export default function Friends() {
     await loadRequests();
   }
 
+  async function removeFriend(friendshipId: string, name: string) {
+    if (!confirm(`Remove ${name} from your friends?`)) return;
+    await api.delete(`/friends/${friendshipId}`);
+    await loadFriends();
+  }
+
   return (
     <div className="px-4 pt-4">
       <div className="relative">
@@ -149,22 +155,19 @@ export default function Friends() {
                   <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
                     {f.user.displayName}
                   </p>
-                  <p className="text-xs text-neutral-400">
-                    {f.loggedToday ? "Moved today ✅" : "Hasn't logged today"}
-                    {f.daysAheadOfMe !== 0 && (
-                      <>
-                        {" · "}
-                        {f.daysAheadOfMe > 0
-                          ? `${f.daysAheadOfMe} day${f.daysAheadOfMe === 1 ? "" : "s"} ahead of you`
-                          : `${-f.daysAheadOfMe} day${-f.daysAheadOfMe === 1 ? "" : "s"} behind you`}
-                      </>
-                    )}
-                  </p>
+                  <p className="text-xs text-neutral-400">@{f.user.username}</p>
                 </div>
-                <div className="flex items-center gap-1 text-orange-500">
+                <div className="flex items-center gap-1 text-orange-500" title="Current streak">
                   <span>🔥</span>
                   <span className="font-bold">{f.streak.currentStreak}</span>
                 </div>
+                <button
+                  onClick={() => removeFriend(f.friendshipId, f.user.displayName)}
+                  className="rounded-full px-2 py-1 text-xs font-semibold text-neutral-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                  aria-label={`Remove ${f.user.displayName}`}
+                >
+                  Remove
+                </button>
               </div>
             ))}
           </div>
