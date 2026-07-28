@@ -40,8 +40,13 @@ export function computeStreak(dates: string[], today: string): StreakInfo {
   const gapFromToday = dayDiff(todayTs, lastTs);
 
   let currentStreak = 0;
-  // Streak is alive if the most recent log was today or yesterday.
-  if (gapFromToday === 0 || gapFromToday === 1) {
+  // Streak is alive if the most recent log was "today or yesterday". We compare
+  // against a single reference date (server UTC when evaluating other people),
+  // but a person's local calendar day can differ from that reference by up to
+  // one day in either direction — so a log dated one day AHEAD of the reference
+  // (an evening logger east of the reference tz) is still "today" for them.
+  // Accepting gap ∈ [-1, 1] makes the streak timezone-robust.
+  if (gapFromToday >= -1 && gapFromToday <= 1) {
     currentStreak = 1;
     for (let i = timestamps.length - 1; i > 0; i--) {
       if (dayDiff(timestamps[i], timestamps[i - 1]) === 1) {

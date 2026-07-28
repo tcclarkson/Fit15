@@ -51,9 +51,13 @@ export function computeChallengeProgress(
   const isUpcoming = parseDate(today) < parseDate(effectiveStart);
   const isEnded = parseDate(today) > parseDate(effectiveEnd);
   const countableEnd = minDate(today, effectiveEnd);
+  // A member's local calendar day can run up to one day ahead of the reference
+  // date (server UTC), so include logs dated one day past `today` (capped at the
+  // challenge end) — otherwise an evening logger's most recent day is dropped.
+  const filterEnd = minDate(addDays(today, 1), effectiveEnd);
 
   const relevant = [...new Set(dates)]
-    .filter((d) => parseDate(d) >= parseDate(effectiveStart) && parseDate(d) <= parseDate(countableEnd))
+    .filter((d) => parseDate(d) >= parseDate(effectiveStart) && parseDate(d) <= parseDate(filterEnd))
     .sort();
 
   const totalDaysHit = relevant.length;
@@ -62,7 +66,9 @@ export function computeChallengeProgress(
   if (relevant.length > 0 && !isUpcoming) {
     const lastTs = parseDate(relevant[relevant.length - 1]);
     const gapFromToday = dayDiff(parseDate(countableEnd), lastTs);
-    if (gapFromToday === 0 || gapFromToday === 1) {
+    // Timezone-robust: accept the most recent log within one day either side
+    // of the reference date (see computeStreak for the full rationale).
+    if (gapFromToday >= -1 && gapFromToday <= 1) {
       currentStreak = 1;
       for (let i = relevant.length - 1; i > 0; i--) {
         if (dayDiff(parseDate(relevant[i]), parseDate(relevant[i - 1])) === 1) {
