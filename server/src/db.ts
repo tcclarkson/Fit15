@@ -113,11 +113,45 @@ CREATE TABLE IF NOT EXISTS challenge_members (
   UNIQUE(challenge_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT UNIQUE NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_logs_user_date ON activity_logs(user_id, log_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_challenge_members_challenge ON challenge_members(challenge_id);
 CREATE INDEX IF NOT EXISTS idx_challenge_members_user ON challenge_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
 `;
+
+// Columns added after the initial release — applied idempotently so existing
+// production databases pick them up without a manual migration.
+const USER_COLUMNS: { name: string; ddl: string }[] = [
+  { name: "reminder_enabled", ddl: "ALTER TABLE users ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 0" },
+  { name: "reminder_minutes", ddl: "ALTER TABLE users ADD COLUMN reminder_minutes INTEGER" },
+  { name: "tz_offset_minutes", ddl: "ALTER TABLE users ADD COLUMN tz_offset_minutes INTEGER" },
+  { name: "last_reminded_date", ddl: "ALTER TABLE users ADD COLUMN last_reminded_date TEXT" },
+];
+
+async function migrateUserColumns(): Promise<void> {
+  const info = await client.execute("PRAGMA table_info(users)");
+  const existing = new Set(info.rows.map((r: any) => r.name));
+  for (const col of USER_COLUMNS) {
+    if (!existing.has(col.name)) {
+      await client.execute(col.ddl);
+    }
+  }
+}
 
 export async function initDb(): Promise<void> {
   if (IS_LOCAL_FILE) {
@@ -126,4 +160,5 @@ export async function initDb(): Promise<void> {
     await client.execute("PRAGMA foreign_keys = ON");
   }
   await client.executeMultiple(SCHEMA);
+  await migrateUserColumns();
 }

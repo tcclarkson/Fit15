@@ -27,6 +27,14 @@ services:
         sync: false
       - key: TURSO_AUTH_TOKEN
         sync: false
+      # Shared secret protecting the daily-reminder trigger endpoint. An external
+      # scheduler (see .github/workflows/reminders.yml) posts to
+      # /api/push/reminders/run with this value so reminders fire even while a
+      # free-tier service is asleep. Copy the generated value into the matching
+      # GitHub Actions secret. (Web-push VAPID keys are generated automatically
+      # and stored in the database — no env setup needed.)
+      - key: CRON_SECRET
+        generateValue: true
     # No persistent disk: Render's free tier doesn't support them. Photo uploads
     # therefore live on ephemeral storage and are lost on restart/redeploy, but
     # the core data (accounts, streaks, friends, challenges) persists in Turso.

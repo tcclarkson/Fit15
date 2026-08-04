@@ -14,6 +14,8 @@ function publicUser(u: any) {
     username: u.username,
     displayName: u.display_name,
     avatarEmoji: u.avatar_emoji,
+    reminderEnabled: !!u.reminder_enabled,
+    reminderMinutes: u.reminder_minutes ?? null,
   };
 }
 

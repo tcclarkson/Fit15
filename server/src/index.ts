@@ -11,6 +11,8 @@ import feedRoutes from "./routes/feed";
 import notificationsRoutes from "./routes/notifications";
 import metaRoutes from "./routes/meta";
 import challengesRoutes from "./routes/challenges";
+import pushRoutes from "./routes/push";
+import { initPush, runDailyReminders } from "./push";
 
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
@@ -32,6 +34,7 @@ app.use("/api/feed", feedRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/meta", metaRoutes);
 app.use("/api/challenges", challengesRoutes);
+app.use("/api/push", pushRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
@@ -51,10 +54,16 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 initDb()
-  .then(() => {
+  .then(async () => {
+    await initPush();
     app.listen(PORT, () => {
       console.log(`Fit 15 API listening on http://localhost:${PORT}`);
     });
+    // Internal sweep — fires reminders while the server is awake. On hosts that
+    // sleep when idle, an external ping to /api/push/reminders/run covers the gaps.
+    setInterval(() => {
+      runDailyReminders().catch((err) => console.error("reminder sweep failed:", err));
+    }, 5 * 60 * 1000);
   })
   .catch((err) => {
     console.error("Failed to initialize database:", err);

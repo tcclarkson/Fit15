@@ -4,6 +4,8 @@ export interface User {
   username: string;
   displayName: string;
   avatarEmoji: string;
+  reminderEnabled?: boolean;
+  reminderMinutes?: number | null;
 }
 
 export interface PublicUser {

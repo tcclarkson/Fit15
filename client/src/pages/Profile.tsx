@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
+import ReminderSettings from "../components/ReminderSettings";
 
 export default function Profile() {
   const { user, updateAvatar, logout } = useAuth();
@@ -76,6 +77,8 @@ export default function Profile() {
       >
         {saving ? "Saving…" : savedMsg ? "Saved ✓" : "Save"}
       </button>
+
+      <ReminderSettings />
 
       <button
         onClick={handleLogout}
