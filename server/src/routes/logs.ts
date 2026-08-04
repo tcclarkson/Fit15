@@ -12,9 +12,10 @@ import { addDays } from "../challengeProgress";
 
 const router = Router();
 
-// Rest days ("life happened") keep a streak alive without a workout, but we cap
-// them so a streak still means "mostly moving". Tunable.
-const REST_WINDOW_DAYS = 7;
+// Rest days ("life happened") keep a streak alive without a workout, but they're
+// meant as an occasional safety net — not a routine — so we cap them to a couple
+// per month. A streak should still mean you're actually moving. Tunable.
+const REST_WINDOW_DAYS = 30;
 const MAX_REST_PER_WINDOW = 2;
 
 const storage = multer.diskStorage({
@@ -131,9 +132,10 @@ router.post("/rest", requireAuth, async (req: AuthedRequest, res) => {
     }
 
     if (!existing) {
-      // Enforce the rolling-window cap (count other rest days near this date).
+      // Enforce the cap over the trailing window ending at this date (+1 day of
+      // forward tolerance for the today/yesterday backfill ambiguity).
       const windowStart = addDays(date, -(REST_WINDOW_DAYS - 1));
-      const windowEnd = addDays(date, REST_WINDOW_DAYS - 1);
+      const windowEnd = addDays(date, 1);
       const restCountRow = (await dbGet<{ c: number }>(
         `SELECT COUNT(*) as c FROM activity_logs
          WHERE user_id = ? AND activity_type = ? AND log_date >= ? AND log_date <= ?`,
