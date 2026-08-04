@@ -1,0 +1,14 @@
+{
+  "name": "Fit 15",
+  "short_name": "Fit 15",
+  "description": "Move 15 minutes a day. Protect your streak.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
