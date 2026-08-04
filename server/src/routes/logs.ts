@@ -44,15 +44,16 @@ function todayUTC(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Allow logging only today or yesterday. A timezone can shift the calendar date
-// by up to a day, so accept a window of [UTC today - 2, UTC today + 1] — enough
-// to cover "yesterday" in every timezone while blocking rewriting old history.
+// Allow logging today, yesterday, or 2 days ago (a small backfill window for
+// missed logs). A timezone can shift the calendar date by up to a day, so accept
+// [UTC today - 3, UTC today + 1] — enough to cover "2 days ago" in every timezone
+// while still blocking rewriting older history.
 function isWithinLogWindow(date: string): boolean {
   const today = todayUTC();
-  return date >= addDays(today, -2) && date <= addDays(today, 1);
+  return date >= addDays(today, -3) && date <= addDays(today, 1);
 }
 
-// Log (or update) an activity for today or yesterday.
+// Log (or update) an activity for a recent day (today, yesterday, or 2 days ago).
 router.post("/", requireAuth, (req: AuthedRequest, res) => {
   upload.single("photo")(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
@@ -69,7 +70,7 @@ router.post("/", requireAuth, (req: AuthedRequest, res) => {
       }
       const date = logDate && isValidDate(logDate) ? logDate : todayUTC();
       if (!isWithinLogWindow(date)) {
-        return res.status(400).json({ error: "You can only log today or yesterday" });
+        return res.status(400).json({ error: "You can only log the last couple of days" });
       }
 
       const photoUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
@@ -93,7 +94,9 @@ router.post("/", requireAuth, (req: AuthedRequest, res) => {
         );
       }
 
-      const streak = computeStreak(await getUserDates(req.userId!), date);
+      // Compute the streak relative to the actual current day, not the (possibly
+      // backfilled) logged date, so the returned currentStreak is meaningful.
+      const streak = computeStreak(await getUserDates(req.userId!), todayUTC());
 
       // Don't ping friends about a backfilled past day (the message says "today").
       const isNewToday = !existing && String(isBackfill) !== "true";
@@ -120,7 +123,7 @@ router.post("/rest", requireAuth, async (req: AuthedRequest, res) => {
     const { logDate } = req.body || {};
     const date = logDate && isValidDate(logDate) ? logDate : todayUTC();
     if (!isWithinLogWindow(date)) {
-      return res.status(400).json({ error: "You can only take a rest day for today or yesterday" });
+      return res.status(400).json({ error: "You can only take a rest day within the last couple of days" });
     }
 
     const existing = (await dbGet(
@@ -154,7 +157,7 @@ router.post("/rest", requireAuth, async (req: AuthedRequest, res) => {
     }
 
     const days = await getUserLogDays(req.userId!);
-    const streak = computeStreak(days.map((d) => d.date), date);
+    const streak = computeStreak(days.map((d) => d.date), todayUTC());
     res.status(201).json({ streak, totalFit15Days: fit15DayCount(days) });
   } catch (e: any) {
     res.status(500).json({ error: e?.message || "Failed to log rest day" });

@@ -24,7 +24,7 @@ export default function Today() {
   const { refresh: refreshNotifications } = useNotifications();
   const [data, setData] = useState<StreakResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [logDay, setLogDay] = useState<"today" | "yesterday" | null>(null);
+  const [logOffset, setLogOffset] = useState<number | null>(null);
   const [showRest, setShowRest] = useState(false);
   const [justLogged, setJustLogged] = useState(false);
 
@@ -50,7 +50,7 @@ export default function Today() {
 
   async function afterAction() {
     setJustLogged(true);
-    setLogDay(null);
+    setLogOffset(null);
     setShowRest(false);
     refreshNotifications();
     await load();
@@ -82,7 +82,7 @@ export default function Today() {
       {/* Nudge: moved but forgot to log yesterday */}
       {!todayLog && !loggedYesterday && (
         <button
-          onClick={() => setLogDay("yesterday")}
+          onClick={() => setLogOffset(1)}
           className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-left dark:border-amber-900/50 dark:bg-amber-500/10"
         >
           <span className="text-xl">📅</span>
@@ -103,7 +103,7 @@ export default function Today() {
                 <p className="text-xs text-indigo-600/80 dark:text-indigo-400">Rest is part of taking care of yourself.</p>
               </div>
               <button
-                onClick={() => setLogDay("today")}
+                onClick={() => setLogOffset(0)}
                 className="text-xs font-semibold text-indigo-700 underline dark:text-indigo-300"
               >
                 I moved
@@ -120,7 +120,7 @@ export default function Today() {
                 </p>
               </div>
               <button
-                onClick={() => setLogDay("today")}
+                onClick={() => setLogOffset(0)}
                 className="text-xs font-semibold text-green-700 underline dark:text-green-400"
               >
                 Edit
@@ -130,7 +130,7 @@ export default function Today() {
         ) : (
           <>
             <button
-              onClick={() => setLogDay("today")}
+              onClick={() => setLogOffset(0)}
               className="w-full rounded-2xl bg-orange-500 py-4 text-lg font-extrabold text-white shadow-lg shadow-orange-500/30 transition hover:bg-orange-600 active:scale-[0.98]"
             >
               Log Today
@@ -151,10 +151,10 @@ export default function Today() {
         </p>
       )}
 
-      {logDay && (
+      {logOffset !== null && (
         <LogActivityModal
-          defaultDay={logDay}
-          onClose={() => setLogDay(null)}
+          defaultOffset={logOffset}
+          onClose={() => setLogOffset(null)}
           onLogged={afterAction}
         />
       )}

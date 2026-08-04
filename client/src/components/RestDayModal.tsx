@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { api } from "../api";
-import { todayLocal, yesterdayLocal } from "../date";
+import { localDateOffset } from "../date";
+import DaySelector, { DAY_LABELS } from "./DaySelector";
 import type { StreakInfo } from "../types";
 
 interface Props {
   onClose: () => void;
   onRested: (result: { streak: StreakInfo; totalFit15Days: number }) => void;
-  defaultDay?: "today" | "yesterday";
+  defaultOffset?: number;
 }
 
 const SELF_CARE_TIPS = [
@@ -18,8 +19,8 @@ const SELF_CARE_TIPS = [
   "Give yourself permission to rest — and an earlier night.",
 ];
 
-export default function RestDayModal({ onClose, onRested, defaultDay = "today" }: Props) {
-  const [day, setDay] = useState<"today" | "yesterday">(defaultDay);
+export default function RestDayModal({ onClose, onRested, defaultOffset = 0 }: Props) {
+  const [dayOffset, setDayOffset] = useState(defaultOffset);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +35,7 @@ export default function RestDayModal({ onClose, onRested, defaultDay = "today" }
     setSubmitting(true);
     try {
       const result = await api.post<{ streak: StreakInfo; totalFit15Days: number }>("/logs/rest", {
-        logDate: day === "today" ? todayLocal() : yesterdayLocal(),
+        logDate: localDateOffset(dayOffset),
       });
       onRested(result);
     } catch (err) {
@@ -76,20 +77,8 @@ export default function RestDayModal({ onClose, onRested, defaultDay = "today" }
           </ul>
         </div>
 
-        <div className="mt-5 flex gap-2">
-          {(["today", "yesterday"] as const).map((d) => (
-            <button
-              key={d}
-              onClick={() => setDay(d)}
-              className={`flex-1 rounded-xl border-2 py-2 text-sm font-semibold capitalize transition ${
-                day === d
-                  ? "border-orange-500 bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400"
-                  : "border-neutral-200 text-neutral-500 dark:border-neutral-700 dark:text-neutral-400"
-              }`}
-            >
-              {d}
-            </button>
-          ))}
+        <div className="mt-5">
+          <DaySelector value={dayOffset} onChange={setDayOffset} />
         </div>
 
         {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
@@ -99,7 +88,7 @@ export default function RestDayModal({ onClose, onRested, defaultDay = "today" }
           disabled={submitting}
           className="mt-4 w-full rounded-xl bg-orange-500 py-3.5 text-base font-bold text-white transition hover:bg-orange-600 disabled:opacity-60"
         >
-          {submitting ? "Saving…" : `Log rest day for ${day}`}
+          {submitting ? "Saving…" : `Log rest day for ${DAY_LABELS[dayOffset].toLowerCase()}`}
         </button>
       </div>
     </div>

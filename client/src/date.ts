@@ -2,10 +2,15 @@ export function todayLocal(): string {
   return todayLocalFromDate(new Date());
 }
 
-export function yesterdayLocal(): string {
+// Local calendar date `daysAgo` days before today (0 = today, 1 = yesterday…).
+export function localDateOffset(daysAgo: number): string {
   const d = new Date();
-  d.setDate(d.getDate() - 1);
+  d.setDate(d.getDate() - daysAgo);
   return todayLocalFromDate(d);
+}
+
+export function yesterdayLocal(): string {
+  return localDateOffset(1);
 }
 
 function isSameLocalDay(date: Date, dateStr: string): boolean {
