@@ -85,20 +85,23 @@ export default function CalendarPage() {
           if (!date) return <div key={i} />;
           const log = logsByDate.get(date);
           const isToday = date === today;
+          const isRest = log?.activity_type === "rest";
           const day = Number(date.split("-")[2]);
           return (
             <button
               key={date}
               onClick={() => log && setSelectedDate(date)}
               className={`flex aspect-square flex-col items-center justify-center rounded-xl text-sm font-semibold transition ${
-                log
+                isRest
+                  ? "bg-indigo-500 text-white"
+                  : log
                   ? "bg-orange-500 text-white"
                   : isToday
                   ? "border-2 border-orange-300 text-neutral-600 dark:text-neutral-300"
                   : "text-neutral-400 dark:text-neutral-500"
               }`}
             >
-              {log ? activityMeta(log.activity_type)?.emoji || "🔥" : day}
+              {log ? (isRest ? "🌙" : activityMeta(log.activity_type)?.emoji || "🔥") : day}
             </button>
           );
         })}
@@ -108,14 +111,19 @@ export default function CalendarPage() {
         <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm dark:bg-neutral-900">
           <div className="flex items-center justify-between">
             <p className="font-bold text-neutral-900 dark:text-neutral-50">
-              {activityMeta(selectedLog.activity_type)?.emoji}{" "}
-              {activityMeta(selectedLog.activity_type)?.label || selectedLog.activity_type}
+              {selectedLog.activity_type === "rest"
+                ? "🌙 Rest day"
+                : `${activityMeta(selectedLog.activity_type)?.emoji || ""} ${
+                    activityMeta(selectedLog.activity_type)?.label || selectedLog.activity_type
+                  }`}
             </p>
             <button onClick={() => setSelectedDate(null)} className="text-neutral-400">
               ✕
             </button>
           </div>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{selectedLog.minutes} minutes</p>
+          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+            {selectedLog.activity_type === "rest" ? "Streak kept alive 💛" : `${selectedLog.minutes} minutes`}
+          </p>
           {selectedLog.note && (
             <p className="mt-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm italic text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
               “{selectedLog.note}”

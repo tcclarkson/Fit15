@@ -1,9 +1,11 @@
 export function todayLocal(): string {
+  return todayLocalFromDate(new Date());
+}
+
+export function yesterdayLocal(): string {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  d.setDate(d.getDate() - 1);
+  return todayLocalFromDate(d);
 }
 
 function isSameLocalDay(date: Date, dateStr: string): boolean {

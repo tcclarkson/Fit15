@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { useActivities } from "../hooks/useActivities";
 import { api } from "../api";
-import { todayLocal } from "../date";
+import { todayLocal, yesterdayLocal } from "../date";
 import type { ActivityLog, StreakInfo } from "../types";
 
 interface Props {
   onClose: () => void;
   onLogged: (result: { log: ActivityLog; streak: StreakInfo }) => void;
+  defaultDay?: "today" | "yesterday";
 }
 
-export default function LogActivityModal({ onClose, onLogged }: Props) {
+export default function LogActivityModal({ onClose, onLogged, defaultDay = "today" }: Props) {
   const activities = useActivities();
+  const [day, setDay] = useState<"today" | "yesterday">(defaultDay);
   const [activityType, setActivityType] = useState<string | null>(null);
   const [minutes, setMinutes] = useState(15);
   const [showExtras, setShowExtras] = useState(false);
@@ -30,7 +32,8 @@ export default function LogActivityModal({ onClose, onLogged }: Props) {
       const form = new FormData();
       form.set("activityType", activityType);
       form.set("minutes", String(minutes));
-      form.set("logDate", todayLocal());
+      form.set("logDate", day === "today" ? todayLocal() : yesterdayLocal());
+      form.set("isBackfill", day === "yesterday" ? "true" : "false");
       if (note.trim()) form.set("note", note.trim());
       if (photo) form.set("photo", photo);
 
@@ -49,7 +52,9 @@ export default function LogActivityModal({ onClose, onLogged }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-extrabold text-neutral-900 dark:text-neutral-50">Log Today 🔥</h2>
+          <h2 className="text-lg font-extrabold text-neutral-900 dark:text-neutral-50">
+            Log {day === "today" ? "Today" : "Yesterday"} 🔥
+          </h2>
           <button
             onClick={onClose}
             className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
@@ -58,6 +63,27 @@ export default function LogActivityModal({ onClose, onLogged }: Props) {
             ✕
           </button>
         </div>
+
+        <div className="mb-5 flex gap-2">
+          {(["today", "yesterday"] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => setDay(d)}
+              className={`flex-1 rounded-xl border-2 py-2 text-sm font-semibold capitalize transition ${
+                day === d
+                  ? "border-orange-500 bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400"
+                  : "border-neutral-200 text-neutral-500 dark:border-neutral-700 dark:text-neutral-400"
+              }`}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+        {day === "yesterday" && (
+          <p className="mb-4 -mt-3 text-center text-xs text-neutral-400">
+            Forgot to log yesterday? Add it to keep your streak.
+          </p>
+        )}
 
         <p className="mb-2 text-sm font-medium text-neutral-600 dark:text-neutral-300">What did you do?</p>
         <div className="mb-5 grid grid-cols-3 gap-2">

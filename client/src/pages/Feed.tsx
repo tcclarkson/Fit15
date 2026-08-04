@@ -29,6 +29,7 @@ export default function Feed() {
   return (
     <div className="space-y-3 px-4 pt-4">
       {items.map((item) => {
+        const isRest = item.activityType === "rest";
         const meta = activityMeta(item.activityType);
         return (
           <div key={item.id} className="rounded-2xl bg-white p-4 shadow-sm dark:bg-neutral-900">
@@ -39,10 +40,18 @@ export default function Feed() {
                   <span className="font-bold text-neutral-900 dark:text-neutral-50">
                     {item.isMe ? "You" : item.user.displayName}
                   </span>{" "}
-                  <span className="text-neutral-500 dark:text-neutral-400">
-                    completed {item.isMe ? "your" : "their"} Fit 15 · {meta?.label || item.activityType}
-                  </span>{" "}
-                  <span>{meta?.emoji}</span>
+                  {isRest ? (
+                    <span className="text-neutral-500 dark:text-neutral-400">
+                      took a rest day <span>🌙</span>
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-neutral-500 dark:text-neutral-400">
+                        completed {item.isMe ? "your" : "their"} Fit 15 · {meta?.label || item.activityType}
+                      </span>{" "}
+                      <span>{meta?.emoji}</span>
+                    </>
+                  )}
                 </p>
                 <p className="mt-0.5 text-xs text-neutral-400">{formatFriendlyDate(item.logDate)}</p>
                 {item.note && (

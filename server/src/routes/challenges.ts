@@ -2,7 +2,7 @@ import { Router } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { dbGet, dbAll, dbRun } from "../db";
 import { requireAuth, AuthedRequest } from "../auth";
-import { getUserDates } from "../userStreak";
+import { getUserLogDays } from "../logDays";
 import { computeChallengeProgress, addDays } from "../challengeProgress";
 import { notify } from "../notify";
 
@@ -136,7 +136,7 @@ router.get("/", requireAuth, async (req: AuthedRequest, res) => {
   );
 
   const today = todayStr();
-  const dates = await getUserDates(req.userId!);
+  const days = await getUserLogDays(req.userId!);
 
   const challenges = await Promise.all(
     rows.map(async (r) => {
@@ -164,7 +164,7 @@ router.get("/", requireAuth, async (req: AuthedRequest, res) => {
         invitedBy: inviterName,
         myProgress:
           r.status === "active"
-            ? computeChallengeProgress(dates, r.member_start_date, r.member_end_date, r.reset_date, today)
+            ? computeChallengeProgress(days, r.member_start_date, r.member_end_date, r.reset_date, today)
             : null,
       };
     })
@@ -193,7 +193,7 @@ router.get("/:id", requireAuth, async (req: AuthedRequest, res) => {
     await Promise.all(
       members.map(async (m) => {
         const progress = computeChallengeProgress(
-          await getUserDates(m.user_id),
+          await getUserLogDays(m.user_id),
           m.member_start_date,
           m.member_end_date,
           m.reset_date,
@@ -214,7 +214,7 @@ router.get("/:id", requireAuth, async (req: AuthedRequest, res) => {
   const myProgress =
     membership.status === "active"
       ? computeChallengeProgress(
-          await getUserDates(req.userId!),
+          await getUserLogDays(req.userId!),
           membership.member_start_date,
           membership.member_end_date,
           membership.reset_date,

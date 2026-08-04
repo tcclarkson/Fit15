@@ -31,14 +31,21 @@ export interface ChallengeProgress {
   effectiveEnd: string;
 }
 
+export interface DayEntry {
+  date: string;
+  isRest: boolean;
+}
+
 /**
- * dates: the member's logged activity dates (any order, not necessarily unique).
+ * days: the member's logged days (workouts + rest), any order. Rest days keep
+ *   the challenge streak alive (they bridge the chain) but do not count as a
+ *   "day hit" toward the goal.
  * memberStart/memberEnd: the member's full window for this challenge.
  * resetDate: if set, progress before this date doesn't count (manual restart).
  * today: caller's local "today" (YYYY-MM-DD).
  */
 export function computeChallengeProgress(
-  dates: string[],
+  days: DayEntry[],
   memberStart: string,
   memberEnd: string,
   resetDate: string | null,
@@ -56,11 +63,13 @@ export function computeChallengeProgress(
   // challenge end) — otherwise an evening logger's most recent day is dropped.
   const filterEnd = minDate(addDays(today, 1), effectiveEnd);
 
-  const relevant = [...new Set(dates)]
-    .filter((d) => parseDate(d) >= parseDate(effectiveStart) && parseDate(d) <= parseDate(filterEnd))
-    .sort();
+  const relevantDays = days
+    .filter((d) => parseDate(d.date) >= parseDate(effectiveStart) && parseDate(d.date) <= parseDate(filterEnd))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
-  const totalDaysHit = relevant.length;
+  // Rest days keep the chain but aren't "days hit".
+  const totalDaysHit = relevantDays.filter((d) => !d.isRest).length;
+  const relevant = relevantDays.map((d) => d.date);
 
   let currentStreak = 0;
   if (relevant.length > 0 && !isUpcoming) {
