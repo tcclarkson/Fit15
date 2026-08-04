@@ -190,12 +190,22 @@ router.get("/streak/me", requireAuth, async (req: AuthedRequest, res) => {
     [req.userId, yesterday]
   )) as any;
 
+  // Rest days remaining in the current rolling window (for a heads-up in the UI).
+  const restUsedRow = (await dbGet<{ c: number }>(
+    `SELECT COUNT(*) as c FROM activity_logs
+     WHERE user_id = ? AND activity_type = ? AND log_date >= ? AND log_date <= ?`,
+    [req.userId, REST_ACTIVITY, addDays(today, -(REST_WINDOW_DAYS - 1)), addDays(today, 1)]
+  ))!;
+  const restDaysLeft = Math.max(0, MAX_REST_PER_WINDOW - Number(restUsedRow.c));
+
   res.json({
     streak,
     totalFit15Days: fit15DayCount(days),
     todayLog: todayLog || null,
     loggedToday: !!todayLog,
     loggedYesterday: !!yesterdayLog,
+    restDaysLeft,
+    restDaysMax: MAX_REST_PER_WINDOW,
   });
 });
 

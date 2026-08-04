@@ -16,6 +16,8 @@ interface StreakResponse {
   todayLog: ActivityLog | null;
   loggedToday: boolean;
   loggedYesterday: boolean;
+  restDaysLeft: number;
+  restDaysMax: number;
 }
 
 export default function Today() {
@@ -158,7 +160,13 @@ export default function Today() {
           onLogged={afterAction}
         />
       )}
-      {showRest && <RestDayModal onClose={() => setShowRest(false)} onRested={afterAction} />}
+      {showRest && (
+        <RestDayModal
+          restDaysLeft={data.restDaysLeft}
+          onClose={() => setShowRest(false)}
+          onRested={afterAction}
+        />
+      )}
     </div>
   );
 }

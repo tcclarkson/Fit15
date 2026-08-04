@@ -7,6 +7,7 @@ import type { StreakInfo } from "../types";
 interface Props {
   onClose: () => void;
   onRested: (result: { streak: StreakInfo; totalFit15Days: number }) => void;
+  restDaysLeft: number;
   defaultOffset?: number;
 }
 
@@ -19,7 +20,8 @@ const SELF_CARE_TIPS = [
   "Give yourself permission to rest — and an earlier night.",
 ];
 
-export default function RestDayModal({ onClose, onRested, defaultOffset = 0 }: Props) {
+export default function RestDayModal({ onClose, onRested, restDaysLeft, defaultOffset = 0 }: Props) {
+  const outOfRestDays = restDaysLeft <= 0;
   const [dayOffset, setDayOffset] = useState(defaultOffset);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +67,16 @@ export default function RestDayModal({ onClose, onRested, defaultOffset = 0 }: P
           Life happens, and rest is part of taking care of yourself too. Your streak is safe — no shame here. 💛
         </p>
 
+        <p
+          className={`mt-3 text-sm font-semibold ${
+            outOfRestDays ? "text-amber-600 dark:text-amber-400" : "text-indigo-600 dark:text-indigo-400"
+          }`}
+        >
+          {outOfRestDays
+            ? "You've used your rest days this month — even a few minutes of movement keeps your streak going."
+            : `You have ${restDaysLeft} rest day${restDaysLeft === 1 ? "" : "s"} left this month 🌙`}
+        </p>
+
         <div className="mt-4 rounded-2xl bg-neutral-50 p-4 dark:bg-neutral-800">
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">If you can, one small thing</p>
           <ul className="mt-2 space-y-1.5">
@@ -85,8 +97,8 @@ export default function RestDayModal({ onClose, onRested, defaultOffset = 0 }: P
 
         <button
           onClick={takeRestDay}
-          disabled={submitting}
-          className="mt-4 w-full rounded-xl bg-orange-500 py-3.5 text-base font-bold text-white transition hover:bg-orange-600 disabled:opacity-60"
+          disabled={submitting || outOfRestDays}
+          className="mt-4 w-full rounded-xl bg-orange-500 py-3.5 text-base font-bold text-white transition hover:bg-orange-600 disabled:opacity-50"
         >
           {submitting ? "Saving…" : `Log rest day for ${DAY_LABELS[dayOffset].toLowerCase()}`}
         </button>
