@@ -96,7 +96,7 @@ router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
 router.patch("/me", requireAuth, async (req: AuthedRequest, res) => {
   const { avatarEmoji } = req.body || {};
   if (!avatarEmoji || !isValidAvatarEmoji(avatarEmoji)) {
-    return res.status(400).json({ error: "Pick an emoji from the list" });
+    return res.status(400).json({ error: "Pick a single emoji" });
   }
   await dbRun("UPDATE users SET avatar_emoji = ? WHERE id = ?", [avatarEmoji, req.userId]);
   const user = await dbGet("SELECT * FROM users WHERE id = ?", [req.userId]);

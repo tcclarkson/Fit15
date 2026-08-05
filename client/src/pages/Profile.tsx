@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import ReminderSettings from "../components/ReminderSettings";
+import { lastEmoji } from "../emoji";
 
 export default function Profile() {
   const { user, updateAvatar, logout } = useAuth();
@@ -66,6 +67,21 @@ export default function Profile() {
             {emoji}
           </button>
         ))}
+      </div>
+
+      <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white p-3 shadow-sm dark:bg-neutral-900">
+        <span className="text-sm text-neutral-500 dark:text-neutral-400">Or type any emoji</span>
+        <input
+          value={selected}
+          onChange={(e) => {
+            const g = lastEmoji(e.target.value);
+            if (g) setSelected(g);
+          }}
+          inputMode="text"
+          maxLength={16}
+          aria-label="Type any emoji"
+          className="ml-auto w-16 rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-center text-2xl outline-none focus:border-orange-500 dark:border-neutral-700 dark:bg-neutral-800"
+        />
       </div>
 
       {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
