@@ -10,29 +10,29 @@ export default function Profile() {
   const navigate = useNavigate();
   const [avatars, setAvatars] = useState<string[]>([]);
   const [selected, setSelected] = useState(user?.avatarEmoji || "🏃");
-  const [saving, setSaving] = useState(false);
-  const [savedMsg, setSavedMsg] = useState(false);
+  const [status, setStatus] = useState<"idle" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api.get<{ avatars: string[] }>("/meta/avatars").then((res) => setAvatars(res.avatars));
   }, []);
 
-  const dirty = selected !== user?.avatarEmoji;
-
-  async function save() {
+  // Auto-save the emoji shortly after it changes — no Save button, consistent
+  // with the reminder settings below (which also save on change).
+  useEffect(() => {
+    if (!user || selected === user.avatarEmoji) return;
     setError(null);
-    setSaving(true);
-    try {
-      await updateAvatar(selected);
-      setSavedMsg(true);
-      setTimeout(() => setSavedMsg(false), 1800);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save");
-    } finally {
-      setSaving(false);
-    }
-  }
+    const t = setTimeout(async () => {
+      try {
+        await updateAvatar(selected);
+        setStatus("saved");
+        setTimeout(() => setStatus("idle"), 1500);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't save");
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [selected, user, updateAvatar]);
 
   async function handleLogout() {
     await logout();
@@ -51,7 +51,11 @@ export default function Profile() {
         <p className="text-sm text-neutral-400">@{user?.username}</p>
       </div>
 
-      <p className="mb-2 mt-6 text-sm font-medium text-neutral-600 dark:text-neutral-300">Pick your emoji</p>
+      <div className="mb-2 mt-6 flex items-center justify-between">
+        <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">Pick your emoji</p>
+        {status === "saved" && <span className="text-xs font-semibold text-green-600">Saved ✓</span>}
+        {error && <span className="text-xs font-semibold text-red-500">{error}</span>}
+      </div>
       <div className="grid grid-cols-6 gap-2 rounded-2xl bg-white p-3 shadow-sm dark:bg-neutral-900">
         {avatars.map((emoji) => (
           <button
@@ -84,21 +88,11 @@ export default function Profile() {
         />
       </div>
 
-      {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
-
-      <button
-        onClick={save}
-        disabled={!dirty || saving}
-        className="mt-4 w-full rounded-xl bg-orange-500 py-3 font-bold text-white transition hover:bg-orange-600 disabled:opacity-50"
-      >
-        {saving ? "Saving…" : savedMsg ? "Saved ✓" : "Save"}
-      </button>
-
       <ReminderSettings />
 
       <button
         onClick={handleLogout}
-        className="mt-3 w-full rounded-xl border border-neutral-200 py-3 font-semibold text-neutral-500 transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+        className="mt-6 w-full rounded-xl border border-neutral-200 py-3 font-semibold text-neutral-500 transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
       >
         Log out
       </button>
