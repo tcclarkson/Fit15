@@ -44,16 +44,16 @@ function todayUTC(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Allow logging today, yesterday, or 2 days ago (a small backfill window for
-// missed logs). A timezone can shift the calendar date by up to a day, so accept
-// [UTC today - 3, UTC today + 1] — enough to cover "2 days ago" in every timezone
-// while still blocking rewriting older history.
+// Allow logging only today or yesterday. A timezone can shift the calendar date
+// by up to a day, so accept [UTC today - 2, UTC today + 1] — enough to cover
+// "yesterday" in every timezone while blocking anything older. (The daily
+// reminder is the real safety net; too-long a backfill window dulls the streak.)
 function isWithinLogWindow(date: string): boolean {
   const today = todayUTC();
-  return date >= addDays(today, -3) && date <= addDays(today, 1);
+  return date >= addDays(today, -2) && date <= addDays(today, 1);
 }
 
-// Log (or update) an activity for a recent day (today, yesterday, or 2 days ago).
+// Log (or update) an activity for today or yesterday.
 router.post("/", requireAuth, (req: AuthedRequest, res) => {
   upload.single("photo")(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
@@ -70,7 +70,7 @@ router.post("/", requireAuth, (req: AuthedRequest, res) => {
       }
       const date = logDate && isValidDate(logDate) ? logDate : todayUTC();
       if (!isWithinLogWindow(date)) {
-        return res.status(400).json({ error: "You can only log the last couple of days" });
+        return res.status(400).json({ error: "You can only log today or yesterday" });
       }
 
       const photoUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
@@ -123,7 +123,7 @@ router.post("/rest", requireAuth, async (req: AuthedRequest, res) => {
     const { logDate } = req.body || {};
     const date = logDate && isValidDate(logDate) ? logDate : todayUTC();
     if (!isWithinLogWindow(date)) {
-      return res.status(400).json({ error: "You can only take a rest day within the last couple of days" });
+      return res.status(400).json({ error: "You can only take a rest day for today or yesterday" });
     }
 
     const existing = (await dbGet(

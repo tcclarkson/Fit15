@@ -1,11 +1,11 @@
-export const DAY_LABELS = ["Today", "Yesterday", "2 days ago"] as const;
+export const DAY_LABELS = ["Today", "Yesterday"] as const;
 
 interface Props {
   value: number;
   onChange: (offset: number) => void;
 }
 
-// Lets the user pick today / yesterday / 2 days ago when logging a missed day.
+// Lets the user pick today or yesterday when logging a missed day.
 export default function DaySelector({ value, onChange }: Props) {
   return (
     <div className="flex gap-2">
