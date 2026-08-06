@@ -1,8 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
-import path from "path";
 import { v4 as uuidv4 } from "uuid";
-import { UPLOADS_DIR, dbGet, dbAll, dbRun } from "../db";
+import { dbGet, dbAll, dbRun } from "../db";
 import { requireAuth, AuthedRequest } from "../auth";
 import { computeStreak } from "../streak";
 import { getUserDates, getUserLogDays, fit15DayCount, REST_ACTIVITY } from "../logDays";
@@ -18,15 +17,10 @@ const router = Router();
 const REST_WINDOW_DAYS = 30;
 const MAX_REST_PER_WINDOW = 2;
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).slice(0, 10);
-    cb(null, `${uuidv4()}${ext}`);
-  },
-});
+// Keep the upload in memory so we can store it in the database (photos on the
+// local disk don't survive restarts on hosts without a durable disk).
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith("image/")) {
@@ -73,25 +67,36 @@ router.post("/", requireAuth, (req: AuthedRequest, res) => {
         return res.status(400).json({ error: "You can only log today or yesterday" });
       }
 
-      const photoUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
       const existing = (await dbGet(
         "SELECT * FROM activity_logs WHERE user_id = ? AND log_date = ?",
         [req.userId, date]
       )) as any;
 
       const now = new Date().toISOString();
+      const logId = existing ? existing.id : uuidv4();
       if (existing) {
         await dbRun(
-          `UPDATE activity_logs SET activity_type = ?, minutes = ?, note = ?, photo_url = COALESCE(?, photo_url)
-           WHERE id = ?`,
-          [activityType, Math.round(minutesNum), note || null, photoUrl || null, existing.id]
+          `UPDATE activity_logs SET activity_type = ?, minutes = ?, note = ? WHERE id = ?`,
+          [activityType, Math.round(minutesNum), note || null, existing.id]
         );
       } else {
         await dbRun(
           `INSERT INTO activity_logs (id, user_id, activity_type, minutes, note, photo_url, log_date, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [uuidv4(), req.userId, activityType, Math.round(minutesNum), note || null, photoUrl || null, date, now]
+           VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`,
+          [logId, req.userId, activityType, Math.round(minutesNum), note || null, date, now]
         );
+      }
+
+      // Store the (client-resized) photo in the DB and point photo_url at the
+      // serve endpoint. Leaving it untouched on edit preserves an earlier photo.
+      if (req.file) {
+        const b64 = req.file.buffer.toString("base64");
+        await dbRun(
+          `INSERT INTO activity_photos (log_id, mime, data) VALUES (?, ?, ?)
+           ON CONFLICT(log_id) DO UPDATE SET mime = excluded.mime, data = excluded.data`,
+          [logId, req.file.mimetype || "image/jpeg", b64]
+        );
+        await dbRun("UPDATE activity_logs SET photo_url = ? WHERE id = ?", [`/api/logs/photo/${logId}`, logId]);
       }
 
       // Compute the streak relative to the actual current day, not the (possibly
@@ -162,6 +167,19 @@ router.post("/rest", requireAuth, async (req: AuthedRequest, res) => {
   } catch (e: any) {
     res.status(500).json({ error: e?.message || "Failed to log rest day" });
   }
+});
+
+// Serve an activity photo stored in the DB. Any signed-in user can load it (same
+// as seeing it in their feed); ids are unguessable UUIDs.
+router.get("/photo/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const row = await dbGet<{ mime: string; data: string }>(
+    "SELECT mime, data FROM activity_photos WHERE log_id = ?",
+    [req.params.id]
+  );
+  if (!row) return res.status(404).end();
+  res.set("Content-Type", row.mime);
+  res.set("Cache-Control", "private, max-age=86400");
+  res.send(Buffer.from(row.data, "base64"));
 });
 
 // Calendar history — all logs for the current user, most recent first.

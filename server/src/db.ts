@@ -127,6 +127,15 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   created_at TEXT NOT NULL
 );
 
+-- Activity photos live in the DB (base64) so they persist across restarts on
+-- hosts without a durable disk. Kept in a separate table so list queries never
+-- pull the image blob.
+CREATE TABLE IF NOT EXISTS activity_photos (
+  log_id TEXT PRIMARY KEY REFERENCES activity_logs(id) ON DELETE CASCADE,
+  mime TEXT NOT NULL,
+  data TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_logs_user_date ON activity_logs(user_id, log_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_challenge_members_challenge ON challenge_members(challenge_id);

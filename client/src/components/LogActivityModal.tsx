@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useActivities } from "../hooks/useActivities";
 import { api } from "../api";
 import { localDateOffset } from "../date";
+import { resizeImage } from "../image";
 import DaySelector, { DAY_LABELS } from "./DaySelector";
 import type { ActivityLog, StreakInfo } from "../types";
 
@@ -36,7 +37,15 @@ export default function LogActivityModal({ onClose, onLogged, defaultOffset = 0 
       form.set("logDate", localDateOffset(dayOffset));
       form.set("isBackfill", dayOffset > 0 ? "true" : "false");
       if (note.trim()) form.set("note", note.trim());
-      if (photo) form.set("photo", photo);
+      if (photo) {
+        // Resize to keep uploads small, but fall back to the original if the
+        // browser can't process it, so a photo always uploads.
+        try {
+          form.set("photo", await resizeImage(photo), "photo.jpg");
+        } catch {
+          form.set("photo", photo, photo.name || "photo.jpg");
+        }
+      }
 
       const result = await api.postForm<{ log: ActivityLog; streak: StreakInfo }>("/logs", form);
       onLogged(result);
