@@ -136,6 +136,17 @@ CREATE TABLE IF NOT EXISTS activity_photos (
   data TEXT NOT NULL
 );
 
+-- Reactions ("props") on feed posts.
+CREATE TABLE IF NOT EXISTS reactions (
+  id TEXT PRIMARY KEY,
+  log_id TEXT NOT NULL REFERENCES activity_logs(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  emoji TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(log_id, user_id, emoji)
+);
+CREATE INDEX IF NOT EXISTS idx_reactions_log ON reactions(log_id);
+
 CREATE INDEX IF NOT EXISTS idx_logs_user_date ON activity_logs(user_id, log_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_challenge_members_challenge ON challenge_members(challenge_id);

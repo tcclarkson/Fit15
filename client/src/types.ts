@@ -63,6 +63,8 @@ export interface FeedItem {
   logDate: string;
   createdAt: string;
   isMe: boolean;
+  reactions: Record<string, number>;
+  myReactions: string[];
 }
 
 export interface AppNotification {

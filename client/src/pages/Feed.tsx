@@ -4,6 +4,8 @@ import { formatFriendlyDate } from "../date";
 import { useActivities } from "../hooks/useActivities";
 import type { FeedItem } from "../types";
 
+const REACTION_EMOJIS = ["🔥", "👏", "💪", "🎉"];
+
 export default function Feed() {
   const activities = useActivities();
   const [items, setItems] = useState<FeedItem[] | null>(null);
@@ -13,6 +15,33 @@ export default function Feed() {
   }, []);
 
   const activityMeta = (key: string) => activities.find((a) => a.key === key);
+
+  // Optimistically toggle a reaction, then persist.
+  async function toggleReaction(logId: string, emoji: string) {
+    setItems((prev) =>
+      prev
+        ? prev.map((it) => {
+            if (it.id !== logId) return it;
+            const mine = it.myReactions.includes(emoji);
+            const counts = { ...it.reactions };
+            counts[emoji] = (counts[emoji] || 0) + (mine ? -1 : 1);
+            if (counts[emoji] <= 0) delete counts[emoji];
+            return {
+              ...it,
+              reactions: counts,
+              myReactions: mine ? it.myReactions.filter((e) => e !== emoji) : [...it.myReactions, emoji],
+            };
+          })
+        : prev
+    );
+    try {
+      await api.post(`/feed/${logId}/react`, { emoji });
+    } catch {
+      // On failure, refetch to resync.
+      const res = await api.get<{ items: FeedItem[] }>("/feed");
+      setItems(res.items);
+    }
+  }
 
   if (!items) return <div className="p-6 text-center text-neutral-400">Loading…</div>;
 
@@ -60,12 +89,40 @@ export default function Feed() {
                   </p>
                 )}
                 {item.photoUrl && (
-                  <img
-                    src={item.photoUrl}
-                    alt=""
-                    className="mt-2 max-h-64 w-full rounded-xl object-cover"
-                  />
+                  <img src={item.photoUrl} alt="" className="mt-2 max-h-64 w-full rounded-xl object-cover" />
                 )}
+
+                {/* Props / reactions */}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {REACTION_EMOJIS.map((emoji) => {
+                    const count = item.reactions[emoji] || 0;
+                    const mine = item.myReactions.includes(emoji);
+                    return (
+                      <button
+                        key={emoji}
+                        onClick={() => toggleReaction(item.id, emoji)}
+                        className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm transition ${
+                          mine
+                            ? "border-orange-400 bg-orange-50 dark:border-orange-500/60 dark:bg-orange-500/15"
+                            : "border-neutral-200 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                        }`}
+                        aria-label={`React ${emoji}`}
+                        aria-pressed={mine}
+                      >
+                        <span>{emoji}</span>
+                        {count > 0 && (
+                          <span
+                            className={`text-xs font-semibold ${
+                              mine ? "text-orange-600 dark:text-orange-400" : "text-neutral-500 dark:text-neutral-400"
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>

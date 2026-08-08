@@ -13,6 +13,7 @@ export const ACTIVITY_TYPES: ActivityDef[] = [
   { key: "yoga", label: "Yoga", emoji: "🧘", noun: "yoga session" },
   { key: "mobility", label: "Mobility", emoji: "🦵", noun: "mobility session" },
   { key: "pickleball", label: "Pickleball", emoji: "🏓", noun: "pickleball session" },
+  { key: "golf", label: "Golf", emoji: "⛳", noun: "golf round" },
   { key: "hiking", label: "Hiking", emoji: "🥾", noun: "hike" },
   { key: "cycling", label: "Cycling", emoji: "🚴", noun: "bike ride" },
   { key: "swimming", label: "Swimming", emoji: "🏊", noun: "swim" },
