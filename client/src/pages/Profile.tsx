@@ -6,12 +6,15 @@ import ReminderSettings from "../components/ReminderSettings";
 import { lastEmoji } from "../emoji";
 
 export default function Profile() {
-  const { user, updateAvatar, logout } = useAuth();
+  const { user, updateAvatar, updateProfile, logout } = useAuth();
   const navigate = useNavigate();
   const [avatars, setAvatars] = useState<string[]>([]);
   const [selected, setSelected] = useState(user?.avatarEmoji || "🏃");
+  const [name, setName] = useState(user?.displayName || "");
   const [status, setStatus] = useState<"idle" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [nameStatus, setNameStatus] = useState<"idle" | "saved">("idle");
+  const [nameError, setNameError] = useState<string | null>(null);
 
   useEffect(() => {
     api.get<{ avatars: string[] }>("/meta/avatars").then((res) => setAvatars(res.avatars));
@@ -34,6 +37,28 @@ export default function Profile() {
     return () => clearTimeout(t);
   }, [selected, user, updateAvatar]);
 
+  // Auto-save the display name after it changes (same pattern as the emoji).
+  useEffect(() => {
+    if (!user) return;
+    const trimmed = name.trim();
+    if (trimmed === user.displayName) return;
+    setNameError(null);
+    if (trimmed.length < 1 || trimmed.length > 30) {
+      setNameError("Name must be 1-30 characters");
+      return;
+    }
+    const t = setTimeout(async () => {
+      try {
+        await updateProfile({ displayName: trimmed });
+        setNameStatus("saved");
+        setTimeout(() => setNameStatus("idle"), 1500);
+      } catch (err) {
+        setNameError(err instanceof Error ? err.message : "Couldn't save");
+      }
+    }, 700);
+    return () => clearTimeout(t);
+  }, [name, user, updateProfile]);
+
   async function handleLogout() {
     await logout();
     navigate("/login");
@@ -47,9 +72,24 @@ export default function Profile() {
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-orange-50 text-5xl dark:bg-orange-500/10">
           {selected}
         </div>
-        <p className="mt-3 text-lg font-bold text-neutral-900 dark:text-neutral-50">{user?.displayName}</p>
+        <p className="mt-3 text-lg font-bold text-neutral-900 dark:text-neutral-50">{name.trim() || user?.displayName}</p>
         <p className="text-sm text-neutral-400">@{user?.username}</p>
       </div>
+
+      <div className="mb-2 mt-6 flex items-center justify-between">
+        <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">Your name</p>
+        {nameStatus === "saved" && <span className="text-xs font-semibold text-green-600">Saved ✓</span>}
+        {nameError && <span className="text-xs font-semibold text-red-500">{nameError}</span>}
+      </div>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        maxLength={30}
+        aria-label="Your name"
+        placeholder="Your name"
+        className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-base font-medium text-neutral-900 shadow-sm outline-none focus:border-orange-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+      />
+      <p className="mt-1.5 px-1 text-xs text-neutral-400">This is the name friends see. Your @{user?.username} handle stays the same.</p>
 
       <div className="mb-2 mt-6 flex items-center justify-between">
         <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">Pick your emoji</p>

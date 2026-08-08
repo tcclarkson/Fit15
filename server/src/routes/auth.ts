@@ -92,13 +92,35 @@ router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ user: publicUser(user) });
 });
 
-// Update the signed-in user's profile avatar emoji.
+// Update the signed-in user's profile (display name and/or avatar emoji).
 router.patch("/me", requireAuth, async (req: AuthedRequest, res) => {
-  const { avatarEmoji } = req.body || {};
-  if (!avatarEmoji || !isValidAvatarEmoji(avatarEmoji)) {
-    return res.status(400).json({ error: "Pick a single emoji" });
+  const body = req.body || {};
+  const updates: string[] = [];
+  const params: any[] = [];
+
+  if (body.avatarEmoji !== undefined) {
+    if (!body.avatarEmoji || !isValidAvatarEmoji(body.avatarEmoji)) {
+      return res.status(400).json({ error: "Pick a single emoji" });
+    }
+    updates.push("avatar_emoji = ?");
+    params.push(body.avatarEmoji);
   }
-  await dbRun("UPDATE users SET avatar_emoji = ? WHERE id = ?", [avatarEmoji, req.userId]);
+
+  if (body.displayName !== undefined) {
+    const name = String(body.displayName).trim();
+    if (name.length < 1 || name.length > 30) {
+      return res.status(400).json({ error: "Name must be 1-30 characters" });
+    }
+    updates.push("display_name = ?");
+    params.push(name);
+  }
+
+  if (!updates.length) {
+    return res.status(400).json({ error: "Nothing to update" });
+  }
+
+  params.push(req.userId);
+  await dbRun(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, params);
   const user = await dbGet("SELECT * FROM users WHERE id = ?", [req.userId]);
   res.json({ user: publicUser(user) });
 });

@@ -10,6 +10,7 @@ interface AuthContextValue {
   login: (input: { emailOrUsername: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
   updateAvatar: (avatarEmoji: string) => Promise<void>;
+  updateProfile: (input: { displayName?: string; avatarEmoji?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -41,13 +42,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const updateAvatar = useCallback(async (avatarEmoji: string) => {
-    const res = await api.patch<{ user: User }>("/auth/me", { avatarEmoji });
+  const updateProfile = useCallback(async (input: { displayName?: string; avatarEmoji?: string }) => {
+    const res = await api.patch<{ user: User }>("/auth/me", input);
     setUser(res.user);
   }, []);
 
+  const updateAvatar = useCallback(
+    async (avatarEmoji: string) => {
+      await updateProfile({ avatarEmoji });
+    },
+    [updateProfile]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, loading, signup, login, logout, updateAvatar }}>
+    <AuthContext.Provider value={{ user, loading, signup, login, logout, updateAvatar, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
