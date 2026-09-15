@@ -13,9 +13,22 @@ const router = Router();
 
 // Rest days ("life happened") keep a streak alive without a workout, but they're
 // meant as an occasional safety net — not a routine — so we cap them to a couple
-// per month. A streak should still mean you're actually moving. Tunable.
-const REST_WINDOW_DAYS = 30;
-const MAX_REST_PER_WINDOW = 2;
+// per calendar month. The allowance resets on the 1st (matching the "left this
+// month" wording in the UI), so a rest day taken in August doesn't count against
+// September. A streak should still mean you're actually moving. Tunable.
+const MAX_REST_PER_MONTH = 2;
+
+// First day of the calendar month containing `date` (YYYY-MM-DD, UTC), and the
+// first day of the following month — used as a half-open [start, next) range.
+function monthStart(date: string): string {
+  return date.slice(0, 7) + "-01";
+}
+function nextMonthStart(date: string): string {
+  const [y, m] = date.split("-").map(Number);
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  return `${ny}-${String(nm).padStart(2, "0")}-01`;
+}
 
 // Keep the upload in memory so we can store it in the database (photos on the
 // local disk don't survive restarts on hosts without a durable disk).
@@ -122,7 +135,7 @@ router.post("/", requireAuth, (req: AuthedRequest, res) => {
 });
 
 // Mark a day as a rest day ("life happened") — keeps the streak alive without a
-// workout. Capped per rolling window; can't overwrite a real workout.
+// workout. Capped per calendar month; can't overwrite a real workout.
 router.post("/rest", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const { logDate } = req.body || {};
@@ -140,18 +153,15 @@ router.post("/rest", requireAuth, async (req: AuthedRequest, res) => {
     }
 
     if (!existing) {
-      // Enforce the cap over the trailing window ending at this date (+1 day of
-      // forward tolerance for the today/yesterday backfill ambiguity).
-      const windowStart = addDays(date, -(REST_WINDOW_DAYS - 1));
-      const windowEnd = addDays(date, 1);
+      // Enforce the cap within the calendar month of the day being logged.
       const restCountRow = (await dbGet<{ c: number }>(
         `SELECT COUNT(*) as c FROM activity_logs
-         WHERE user_id = ? AND activity_type = ? AND log_date >= ? AND log_date <= ?`,
-        [req.userId, REST_ACTIVITY, windowStart, windowEnd]
+         WHERE user_id = ? AND activity_type = ? AND log_date >= ? AND log_date < ?`,
+        [req.userId, REST_ACTIVITY, monthStart(date), nextMonthStart(date)]
       ))!;
-      if (Number(restCountRow.c) >= MAX_REST_PER_WINDOW) {
+      if (Number(restCountRow.c) >= MAX_REST_PER_MONTH) {
         return res.status(429).json({
-          error: `Rest days are limited to ${MAX_REST_PER_WINDOW} per ${REST_WINDOW_DAYS} days — you've used them up. Even a few minutes of movement keeps your streak going.`,
+          error: `Rest days are limited to ${MAX_REST_PER_MONTH} per month — you've used them up. They reset on the 1st. Even a few minutes of movement keeps your streak going.`,
         });
       }
       await dbRun(
@@ -208,13 +218,13 @@ router.get("/streak/me", requireAuth, async (req: AuthedRequest, res) => {
     [req.userId, yesterday]
   )) as any;
 
-  // Rest days remaining in the current rolling window (for a heads-up in the UI).
+  // Rest days remaining this calendar month (for a heads-up in the UI).
   const restUsedRow = (await dbGet<{ c: number }>(
     `SELECT COUNT(*) as c FROM activity_logs
-     WHERE user_id = ? AND activity_type = ? AND log_date >= ? AND log_date <= ?`,
-    [req.userId, REST_ACTIVITY, addDays(today, -(REST_WINDOW_DAYS - 1)), addDays(today, 1)]
+     WHERE user_id = ? AND activity_type = ? AND log_date >= ? AND log_date < ?`,
+    [req.userId, REST_ACTIVITY, monthStart(today), nextMonthStart(today)]
   ))!;
-  const restDaysLeft = Math.max(0, MAX_REST_PER_WINDOW - Number(restUsedRow.c));
+  const restDaysLeft = Math.max(0, MAX_REST_PER_MONTH - Number(restUsedRow.c));
 
   res.json({
     streak,
@@ -223,7 +233,7 @@ router.get("/streak/me", requireAuth, async (req: AuthedRequest, res) => {
     loggedToday: !!todayLog,
     loggedYesterday: !!yesterdayLog,
     restDaysLeft,
-    restDaysMax: MAX_REST_PER_WINDOW,
+    restDaysMax: MAX_REST_PER_MONTH,
   });
 });
 
