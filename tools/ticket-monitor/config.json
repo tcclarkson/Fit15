@@ -1,0 +1,13 @@
+{
+  "event_name": "Harry Styles - Together, Together Tour",
+  "venue": "AT&T Stadium, Arlington, TX",
+  "event_date": "2027-04-16",
+  "quantity": 2,
+  "target_price": 250,
+  "max_price": 400,
+  "seatgeek": {
+    "query": "Harry Styles",
+    "city": "Arlington",
+    "event_id": null
+  }
+}
